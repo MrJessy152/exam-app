@@ -267,7 +267,7 @@ function overallStats() {
           ${navButton("home", "home", "หน้าหลัก")}
           ${navButton("practice", "edit", "ฝึกทำข้อสอบ")}
           ${navButton("mistakes", "x", "ข้อที่ทำผิด", Object.keys(state.saved.mistakes).length)}
-          ${navButton("analytics", "chart", "วิเคราะห์ผล")}${navButton("sessions", "bookmark", "Sessions")}${navButton("sessions", "bookmark", "Sessions")}
+          ${navButton("analytics", "chart", "วิเคราะห์ผล")}${navButton("sessions", "bookmark", "Sessions")}
         </aside>
         <main class="main">${content}</main>
       </div>`;
@@ -427,7 +427,7 @@ function overallStats() {
             <h1 style="margin:0 0 8px">สรุปผลการทำข้อสอบ</h1>
             <p>ตอบถูก ${score.correct} จาก ${score.total} ข้อ · ใช้เวลา ${formatTime(state.elapsed)}</p>
             <div class="result-actions">
-              <button class="primary-button" data-action="save-session">💾 บันทึกผล</button><button class="secondary-button" data-action="retry-mistakes">ฝึกเฉพาะข้อที่ผิด</button>
+              <button class="primary-button" data-action="save-session">💾 บันทึกผล</button><button class="secondary-button" data-action="discard-session">❌ ไม่บันทึก</button><button class="secondary-button" data-action="retry-mistakes">ฝึกเฉพาะข้อที่ผิด</button>
               <button class="secondary-button" data-view="home">กลับหน้าหลัก</button>
             </div>
           </div>
@@ -499,15 +499,12 @@ function overallStats() {
     return shell(`<div class="page"><h1 class="page-title">Sessions</h1><section class="panel">${items.length ? items.map((s,i)=>`<div class="mistake-row"><div><p><strong>${escapeHtml(s.name)}</strong> (${escapeHtml(s.type)})</p><small>${new Date(s.date).toLocaleString("th-TH")}</small></div><div><strong>${s.percent}%</strong> <button class="danger-button" data-delete-session="${i}">ลบ</button></div></div>`).join("") : '<div class="empty-state">ยังไม่มี Session</div>'}</section></div>`);
   }
 
-function sessionsView(){return shell(`<div class="page"><h1 class="page-title">Sessions</h1><section class="panel">${state.sessions.length?state.sessions.map((s,i)=>`<div class="mistake-row"><div><p>${s.name}</p><small>${s.type} · ${s.score}%</small></div><button class="danger-button" data-delete-session="${i}">ลบ</button></div>`).join(""):`<div class="empty-state">ยังไม่มี Session</div>`}</section></div>`);} 
-
 function render() {
     const app = document.getElementById("app");
     if (state.view === "quiz") app.innerHTML = quizView();
     else if (state.view === "results") app.innerHTML = resultsView();
     else if (state.view === "mistakes") app.innerHTML = mistakesView();
     else if (state.view === "analytics") app.innerHTML = analyticsView();
-    else if (state.view === "sessions") app.innerHTML = sessionsView();
     else if (state.view === "sessions") app.innerHTML = sessionsView();
     else app.innerHTML = homeView();
   }
@@ -562,6 +559,8 @@ function render() {
       render();
     } else if (action === "save-session") {
       saveNamedSession();
+    } else if (action === "discard-session") {
+      state.view="home"; render();
     } else if (action === "retry-mistakes" || action === "practice-all-mistakes") {
       const pool = DATA.filter((q) => state.saved.mistakes[q.id]);
       state.count = pool.length || 10;
