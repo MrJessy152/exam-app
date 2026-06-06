@@ -22,12 +22,13 @@
     try {
       return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {
         attempts: [],
+        sessions: [],
         mistakes: {},
         bookmarks: {},
         topicStats: {},
       };
     } catch {
-      return { attempts: [], mistakes: {}, bookmarks: {}, topicStats: {} };
+      return { attempts: [], sessions: [], mistakes: {}, bookmarks: {}, topicStats: {} };
     }
   }
 
@@ -185,7 +186,27 @@
     render();
   }
 
-  function overallStats() {
+  
+  function saveNamedSession() {
+    const name = prompt("ชื่อ Session (เช่น Pre-test ก่อนเรียน)");
+    if (!name) return;
+    const type = prompt("ประเภท Session","สอบจำลอง") || "อื่นๆ";
+    const score = scoreSession();
+    const percent = Math.round((score.correct / score.total) * 100);
+    state.saved.sessions = state.saved.sessions || [];
+    state.saved.sessions.unshift({name,type,percent,correct:score.correct,total:score.total,date:new Date().toISOString()});
+    saveProgress();
+    alert("บันทึก Session เรียบร้อย");
+  }
+
+  function deleteSession(index){
+    if(!confirm("ลบ Session นี้?")) return;
+    state.saved.sessions.splice(index,1);
+    saveProgress();
+    render();
+  }
+
+function overallStats() {
     const attempts = state.saved.attempts;
     const total = attempts.reduce((sum, item) => sum + item.total, 0);
     const correct = attempts.reduce((sum, item) => sum + item.correct, 0);
@@ -244,7 +265,7 @@
           ${navButton("home", "home", "หน้าหลัก")}
           ${navButton("practice", "edit", "ฝึกทำข้อสอบ")}
           ${navButton("mistakes", "x", "ข้อที่ทำผิด", Object.keys(state.saved.mistakes).length)}
-          ${navButton("analytics", "chart", "วิเคราะห์ผล")}
+          ${navButton("analytics", "chart", "วิเคราะห์ผล")}${navButton("sessions", "bookmark", "Sessions")}
         </aside>
         <main class="main">${content}</main>
       </div>`;
@@ -404,7 +425,7 @@
             <h1 style="margin:0 0 8px">สรุปผลการทำข้อสอบ</h1>
             <p>ตอบถูก ${score.correct} จาก ${score.total} ข้อ · ใช้เวลา ${formatTime(state.elapsed)}</p>
             <div class="result-actions">
-              <button class="primary-button" data-action="retry-mistakes">ฝึกเฉพาะข้อที่ผิด</button>
+              <button class="primary-button" data-action="save-session">💾 บันทึกผล</button><button class="secondary-button" data-action="retry-mistakes">ฝึกเฉพาะข้อที่ผิด</button>
               <button class="secondary-button" data-view="home">กลับหน้าหลัก</button>
             </div>
           </div>
@@ -470,12 +491,19 @@
       </div>`);
   }
 
-  function render() {
+  
+  function sessionsView() {
+    const items = state.saved.sessions || [];
+    return shell(`<div class="page"><h1 class="page-title">Sessions</h1><section class="panel">${items.length ? items.map((s,i)=>`<div class="mistake-row"><div><p><strong>${escapeHtml(s.name)}</strong> (${escapeHtml(s.type)})</p><small>${new Date(s.date).toLocaleString("th-TH")}</small></div><div><strong>${s.percent}%</strong> <button class="danger-button" data-delete-session="${i}">ลบ</button></div></div>`).join("") : '<div class="empty-state">ยังไม่มี Session</div>'}</section></div>`);
+  }
+
+function render() {
     const app = document.getElementById("app");
     if (state.view === "quiz") app.innerHTML = quizView();
     else if (state.view === "results") app.innerHTML = resultsView();
     else if (state.view === "mistakes") app.innerHTML = mistakesView();
     else if (state.view === "analytics") app.innerHTML = analyticsView();
+    else if (state.view === "sessions") app.innerHTML = sessionsView();
     else app.innerHTML = homeView();
   }
 
@@ -499,6 +527,7 @@
       return;
     }
     const practice = event.target.closest("[data-practice-id]");
+    const delSession = event.target.closest("[data-delete-session]"); if(delSession){ deleteSession(Number(delSession.dataset.deleteSession)); return; }
     if (practice) {
       const question = DATA.find((item) => item.id === practice.dataset.practiceId);
       state.count = 1;
@@ -526,6 +555,8 @@
       else state.saved.bookmarks[id] = true;
       saveProgress();
       render();
+    } else if (action === "save-session") {
+      saveNamedSession();
     } else if (action === "retry-mistakes" || action === "practice-all-mistakes") {
       const pool = DATA.filter((q) => state.saved.mistakes[q.id]);
       state.count = pool.length || 10;
